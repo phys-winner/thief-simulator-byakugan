@@ -6,6 +6,8 @@
 
 ![Preview](screenshot.png)
 
+[**📥 Download Latest Release**](https://github.com/phys-winner/thief-simulator-byakugan/releases/latest)
+
 ## 👁️ Features
 
 - **Item ESP**: Identify and locate valuable loot, quest items, and tools across the map.
