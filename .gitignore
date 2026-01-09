@@ -1,0 +1,23 @@
+# Build folders
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio / IDE
+.vs/
+*.user
+*.userprefs
+*.suo
+*.sln.docstates
+
+# Logs
+[Ll]og/
+[Ll]ogs/
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+
+# Scripts files
+run_test.bat
