@@ -16,6 +16,7 @@ namespace ThiefSimulatorHack
         private bool _transparentWalls = false;
         private bool _whiteWalls = false;
         private bool _showBrickItems = false;
+        private bool _confirmUnload = false;
         
         // Settings
         private float _espDistance = 100f;
@@ -493,15 +494,29 @@ namespace ThiefSimulatorHack
             GUILayout.Label("--- UTILS ---");
             GUI.contentColor = Color.white;
 
-
-
-            if (GUILayout.Button("Unload & Cleanup"))
+            if (!_confirmUnload)
             {
-                DisableWhiteWalls();
-                DisableTransparentWalls();
-                DisableAIChams();
-                DisableCarChams();
-                Loader.Unload();
+                if (GUILayout.Button("Unload & Cleanup"))
+                {
+                    _confirmUnload = true;
+                }
+            }
+            else
+            {
+                GUI.backgroundColor = Color.red;
+                if (GUILayout.Button("CONFIRM UNLOAD"))
+                {
+                    DisableWhiteWalls();
+                    DisableTransparentWalls();
+                    DisableAIChams();
+                    DisableCarChams();
+                    Loader.Unload();
+                }
+                GUI.backgroundColor = new Color(0.1f, 0.1f, 0.1f, 0.9f); // Restore default
+                if (GUILayout.Button("Cancel"))
+                {
+                    _confirmUnload = false;
+                }
             }
 
             GUILayout.FlexibleSpace();
