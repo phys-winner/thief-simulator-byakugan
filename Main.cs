@@ -54,8 +54,12 @@ namespace ThiefSimulatorHack
         private void Start()
         {
             // Create white material for walls
-            _whiteMaterial = new Material(Shader.Find("Standard"));
-            _whiteMaterial.color = Color.white;
+            Shader standardShader = Shader.Find("Standard");
+            if (standardShader != null)
+            {
+                _whiteMaterial = new Material(standardShader);
+                _whiteMaterial.color = Color.white;
+            }
             
             // Create transparent material for walls
             Shader transparentShader = Shader.Find("Transparent/Diffuse");
@@ -66,34 +70,38 @@ namespace ThiefSimulatorHack
             }
             
             // Create cham material for AI (visible through walls)
-            _aiChamMaterial = new Material(Shader.Find("Hidden/Internal-Colored"));
-            _aiChamMaterial.hideFlags = HideFlags.HideAndDontSave;
-            _aiChamMaterial.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-            _aiChamMaterial.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-            _aiChamMaterial.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
-            _aiChamMaterial.SetInt("_ZWrite", 0);
-            _aiChamMaterial.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Always);
-            _aiChamMaterial.color = new Color(1f, 0f, 0f, 0.8f); // Bright red
-            
-            // Create cham material for player car (green)
-            _playerCarChamMaterial = new Material(Shader.Find("Hidden/Internal-Colored"));
-            _playerCarChamMaterial.hideFlags = HideFlags.HideAndDontSave;
-            _playerCarChamMaterial.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-            _playerCarChamMaterial.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-            _playerCarChamMaterial.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
-            _playerCarChamMaterial.SetInt("_ZWrite", 0);
-            _playerCarChamMaterial.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Always);
-            _playerCarChamMaterial.color = new Color(0f, 1f, 0f, 0.8f); // Bright green
-            
-            // Create cham material for other cars (orange)
-            _otherCarChamMaterial = new Material(Shader.Find("Hidden/Internal-Colored"));
-            _otherCarChamMaterial.hideFlags = HideFlags.HideAndDontSave;
-            _otherCarChamMaterial.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-            _otherCarChamMaterial.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-            _otherCarChamMaterial.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
-            _otherCarChamMaterial.SetInt("_ZWrite", 0);
-            _otherCarChamMaterial.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Always);
-            _otherCarChamMaterial.color = new Color(1f, 0.5f, 0f, 0.8f); // Orange
+            Shader coloredShader = Shader.Find("Hidden/Internal-Colored");
+            if (coloredShader != null)
+            {
+                _aiChamMaterial = new Material(coloredShader);
+                _aiChamMaterial.hideFlags = HideFlags.HideAndDontSave;
+                _aiChamMaterial.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                _aiChamMaterial.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                _aiChamMaterial.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
+                _aiChamMaterial.SetInt("_ZWrite", 0);
+                _aiChamMaterial.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Always);
+                _aiChamMaterial.color = new Color(1f, 0f, 0f, 0.8f); // Bright red
+
+                // Create cham material for player car (green)
+                _playerCarChamMaterial = new Material(coloredShader);
+                _playerCarChamMaterial.hideFlags = HideFlags.HideAndDontSave;
+                _playerCarChamMaterial.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                _playerCarChamMaterial.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                _playerCarChamMaterial.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
+                _playerCarChamMaterial.SetInt("_ZWrite", 0);
+                _playerCarChamMaterial.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Always);
+                _playerCarChamMaterial.color = new Color(0f, 1f, 0f, 0.8f); // Bright green
+
+                // Create cham material for other cars (orange)
+                _otherCarChamMaterial = new Material(coloredShader);
+                _otherCarChamMaterial.hideFlags = HideFlags.HideAndDontSave;
+                _otherCarChamMaterial.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                _otherCarChamMaterial.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                _otherCarChamMaterial.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
+                _otherCarChamMaterial.SetInt("_ZWrite", 0);
+                _otherCarChamMaterial.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Always);
+                _otherCarChamMaterial.color = new Color(1f, 0.5f, 0f, 0.8f); // Orange
+            }
         }
 
         private void Update()
@@ -163,46 +171,62 @@ namespace ThiefSimulatorHack
             _cachedVehicles.Clear();
 
             // Find ItemObject components
-            Component[] itemObjects = GameObject.FindObjectsOfType(System.Type.GetType("ItemObject, Assembly-CSharp")) as Component[];
-            if (itemObjects != null)
+            System.Type itemObjectType = System.Type.GetType("ItemObject, Assembly-CSharp");
+            if (itemObjectType != null)
             {
-                foreach (var item in itemObjects)
+                Component[] itemObjects = GameObject.FindObjectsOfType(itemObjectType) as Component[];
+                if (itemObjects != null)
                 {
-                    if (item != null && item.gameObject.activeInHierarchy)
-                        _cachedItems.Add(item);
+                    foreach (var item in itemObjects)
+                    {
+                        if (item != null && item.gameObject.activeInHierarchy)
+                            _cachedItems.Add(item);
+                    }
                 }
             }
 
             // Find HumanAIObject components
-            Component[] aiObjects = GameObject.FindObjectsOfType(System.Type.GetType("HumanAIObject, Assembly-CSharp")) as Component[];
-            if (aiObjects != null)
+            System.Type humanAIObjectType = System.Type.GetType("HumanAIObject, Assembly-CSharp");
+            if (humanAIObjectType != null)
             {
-                foreach (var ai in aiObjects)
+                Component[] aiObjects = GameObject.FindObjectsOfType(humanAIObjectType) as Component[];
+                if (aiObjects != null)
                 {
-                    if (ai != null && ai.gameObject.activeInHierarchy)
-                        _cachedAI.Add(ai);
+                    foreach (var ai in aiObjects)
+                    {
+                        if (ai != null && ai.gameObject.activeInHierarchy)
+                            _cachedAI.Add(ai);
+                    }
                 }
             }
 
             // Find CCTVCameraObject components
-            Component[] cctvCameras = GameObject.FindObjectsOfType(System.Type.GetType("CCTVCameraObject, Assembly-CSharp")) as Component[];
-            if (cctvCameras != null)
+            System.Type cctvCameraObjectType = System.Type.GetType("CCTVCameraObject, Assembly-CSharp");
+            if (cctvCameraObjectType != null)
             {
-                foreach (var cam in cctvCameras)
+                Component[] cctvCameras = GameObject.FindObjectsOfType(cctvCameraObjectType) as Component[];
+                if (cctvCameras != null)
                 {
-                    if (cam != null && cam.gameObject.activeInHierarchy)
-                        _cachedCameras.Add(cam);
+                    foreach (var cam in cctvCameras)
+                    {
+                        if (cam != null && cam.gameObject.activeInHierarchy)
+                            _cachedCameras.Add(cam);
+                    }
                 }
             }
             
             // Find ALL vehicles
-            Component[] vehicles = GameObject.FindObjectsOfType(System.Type.GetType("ControllableVehicle, Assembly-CSharp")) as Component[];
-            if (vehicles != null)
+            System.Type vehicleObjectType = System.Type.GetType("ControllableVehicle, Assembly-CSharp");
+            if (vehicleObjectType != null)
             {
-                foreach (var car in vehicles)
+                Component[] vehicles = GameObject.FindObjectsOfType(vehicleObjectType) as Component[];
+                if (vehicles != null)
                 {
-                    if (car != null && car.gameObject.activeInHierarchy)
-                        _cachedVehicles.Add(car);
+                    foreach (var car in vehicles)
+                    {
+                        if (car != null && car.gameObject.activeInHierarchy)
+                            _cachedVehicles.Add(car);
+                    }
                 }
             }
         }
@@ -290,9 +314,14 @@ namespace ThiefSimulatorHack
         {
             foreach (var renderer in _transparentWallRenderers)
             {
-                if (renderer != null && renderer.materials != null)
+                if (renderer != null)
                 {
-                    foreach (var mat in renderer.materials)
+                    // Use sharedMaterials to avoid cloning. Since we explicitly set these materials
+                    // in ApplyTransparentWalls, we are modifying our own cloned instances.
+                    Material[] mats = renderer.sharedMaterials;
+                    if (mats == null) continue;
+
+                    foreach (var mat in mats)
                     {
                         if (mat != null)
                         {
@@ -311,6 +340,16 @@ namespace ThiefSimulatorHack
             {
                 if (renderer != null && _originalWallMaterials.ContainsKey(renderer))
                 {
+                    // Clean up our cloned materials to prevent memory leak
+                    Material[] currentMats = renderer.sharedMaterials;
+                    if (currentMats != null)
+                    {
+                        foreach (var mat in currentMats)
+                        {
+                            if (mat != null) Object.Destroy(mat);
+                        }
+                    }
+
                     renderer.materials = _originalWallMaterials[renderer];
                 }
             }
