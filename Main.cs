@@ -52,8 +52,57 @@ namespace ThiefSimulatorHack
         private Material _playerCarChamMaterial;
         private Material _otherCarChamMaterial;
 
+        // Reflection cache
+        private System.Type _itemObjectType;
+        private System.Type _humanAIObjectType;
+        private System.Type _cctvCameraObjectType;
+        private System.Type _vehicleType;
+
+        private FieldInfo _itemAssetField;
+        private FieldInfo _isCashField;
+        private FieldInfo _itemNameField;
+        private FieldInfo _isBigItemField;
+        private FieldInfo _itemTypeField;
+        private FieldInfo _renderersOnField;
+        private PropertyInfo _thiefDetectorProperty;
+        private FieldInfo _thiefsVehicleField;
+
+        // Optimized updates
+        private List<Material> _instantiatedTransparentMaterials = new List<Material>();
+
         private void Start()
         {
+            // Cache types and fields
+            _itemObjectType = System.Type.GetType("ItemObject, Assembly-CSharp");
+            _humanAIObjectType = System.Type.GetType("HumanAIObject, Assembly-CSharp");
+            _cctvCameraObjectType = System.Type.GetType("CCTVCameraObject, Assembly-CSharp");
+            _vehicleType = System.Type.GetType("ControllableVehicle, Assembly-CSharp");
+
+            if (_itemObjectType != null)
+            {
+                _itemAssetField = _itemObjectType.GetField("itemAsset", BindingFlags.Public | BindingFlags.Instance);
+                _isCashField = _itemObjectType.GetField("isCash", BindingFlags.Public | BindingFlags.Instance);
+
+                if (_itemAssetField != null)
+                {
+                    System.Type itemAssetType = _itemAssetField.FieldType;
+                    _itemNameField = itemAssetType.GetField("itemName", BindingFlags.Public | BindingFlags.Instance);
+                    _isBigItemField = itemAssetType.GetField("isBigItem", BindingFlags.Public | BindingFlags.Instance);
+                    _itemTypeField = itemAssetType.GetField("itemType", BindingFlags.Public | BindingFlags.Instance);
+                }
+            }
+
+            if (_humanAIObjectType != null)
+            {
+                _renderersOnField = _humanAIObjectType.GetField("renderersOn", BindingFlags.NonPublic | BindingFlags.Instance);
+                _thiefDetectorProperty = _humanAIObjectType.GetProperty("thiefDetector", BindingFlags.Public | BindingFlags.Instance);
+            }
+
+            if (_vehicleType != null)
+            {
+                _thiefsVehicleField = _vehicleType.GetField("thiefsVehicle", BindingFlags.Public | BindingFlags.Instance);
+            }
+
             // Create white material for walls
             _whiteMaterial = new Material(Shader.Find("Standard"));
             _whiteMaterial.color = Color.white;
@@ -164,46 +213,58 @@ namespace ThiefSimulatorHack
             _cachedVehicles.Clear();
 
             // Find ItemObject components
-            Component[] itemObjects = GameObject.FindObjectsOfType(System.Type.GetType("ItemObject, Assembly-CSharp")) as Component[];
-            if (itemObjects != null)
+            if (_itemObjectType != null)
             {
-                foreach (var item in itemObjects)
+                Component[] itemObjects = GameObject.FindObjectsOfType(_itemObjectType) as Component[];
+                if (itemObjects != null)
                 {
-                    if (item != null && item.gameObject.activeInHierarchy)
-                        _cachedItems.Add(item);
+                    foreach (var item in itemObjects)
+                    {
+                        if (item != null && item.gameObject.activeInHierarchy)
+                            _cachedItems.Add(item);
+                    }
                 }
             }
 
             // Find HumanAIObject components
-            Component[] aiObjects = GameObject.FindObjectsOfType(System.Type.GetType("HumanAIObject, Assembly-CSharp")) as Component[];
-            if (aiObjects != null)
+            if (_humanAIObjectType != null)
             {
-                foreach (var ai in aiObjects)
+                Component[] aiObjects = GameObject.FindObjectsOfType(_humanAIObjectType) as Component[];
+                if (aiObjects != null)
                 {
-                    if (ai != null && ai.gameObject.activeInHierarchy)
-                        _cachedAI.Add(ai);
+                    foreach (var ai in aiObjects)
+                    {
+                        if (ai != null && ai.gameObject.activeInHierarchy)
+                            _cachedAI.Add(ai);
+                    }
                 }
             }
 
             // Find CCTVCameraObject components
-            Component[] cctvCameras = GameObject.FindObjectsOfType(System.Type.GetType("CCTVCameraObject, Assembly-CSharp")) as Component[];
-            if (cctvCameras != null)
+            if (_cctvCameraObjectType != null)
             {
-                foreach (var cam in cctvCameras)
+                Component[] cctvCameras = GameObject.FindObjectsOfType(_cctvCameraObjectType) as Component[];
+                if (cctvCameras != null)
                 {
-                    if (cam != null && cam.gameObject.activeInHierarchy)
-                        _cachedCameras.Add(cam);
+                    foreach (var cam in cctvCameras)
+                    {
+                        if (cam != null && cam.gameObject.activeInHierarchy)
+                            _cachedCameras.Add(cam);
+                    }
                 }
             }
             
             // Find ALL vehicles
-            Component[] vehicles = GameObject.FindObjectsOfType(System.Type.GetType("ControllableVehicle, Assembly-CSharp")) as Component[];
-            if (vehicles != null)
+            if (_vehicleType != null)
             {
-                foreach (var car in vehicles)
+                Component[] vehicles = GameObject.FindObjectsOfType(_vehicleType) as Component[];
+                if (vehicles != null)
                 {
-                    if (car != null && car.gameObject.activeInHierarchy)
-                        _cachedVehicles.Add(car);
+                    foreach (var car in vehicles)
+                    {
+                        if (car != null && car.gameObject.activeInHierarchy)
+                            _cachedVehicles.Add(car);
+                    }
                 }
             }
         }
@@ -255,6 +316,7 @@ namespace ThiefSimulatorHack
         {
             _transparentWallRenderers.Clear();
             _originalWallMaterials.Clear();
+            _instantiatedTransparentMaterials.Clear();
 
             MeshRenderer[] allRenderers = GameObject.FindObjectsOfType<MeshRenderer>();
             foreach (var renderer in allRenderers)
@@ -279,6 +341,7 @@ namespace ThiefSimulatorHack
                         Color col = Color.white;
                         col.a = _wallTransparency;
                         transMats[i].color = col;
+                        _instantiatedTransparentMaterials.Add(transMats[i]);
                     }
                     
                     renderer.materials = transMats;
@@ -289,19 +352,16 @@ namespace ThiefSimulatorHack
 
         private void UpdateWallTransparency()
         {
-            foreach (var renderer in _transparentWallRenderers)
+            // Optimization: Iterate over cached materials directly
+            // This avoids accessing renderer.materials which creates a new array every time
+            for (int i = 0; i < _instantiatedTransparentMaterials.Count; i++)
             {
-                if (renderer != null && renderer.materials != null)
+                Material mat = _instantiatedTransparentMaterials[i];
+                if (mat != null)
                 {
-                    foreach (var mat in renderer.materials)
-                    {
-                        if (mat != null)
-                        {
-                            Color col = mat.color;
-                            col.a = _wallTransparency;
-                            mat.color = col;
-                        }
-                    }
+                    Color col = mat.color;
+                    col.a = _wallTransparency;
+                    mat.color = col;
                 }
             }
         }
@@ -317,6 +377,7 @@ namespace ThiefSimulatorHack
             }
             _transparentWallRenderers.Clear();
             _originalWallMaterials.Clear();
+            _instantiatedTransparentMaterials.Clear();
         }
 
         private void ApplyAIChams()
@@ -411,10 +472,9 @@ namespace ThiefSimulatorHack
         {
             try
             {
-                FieldInfo renderersOnField = aiComp.GetType().GetField("renderersOn", BindingFlags.NonPublic | BindingFlags.Instance);
-                if (renderersOnField != null)
+                if (_renderersOnField != null)
                 {
-                    return (bool)renderersOnField.GetValue(aiComp);
+                    return (bool)_renderersOnField.GetValue(aiComp);
                 }
                 
                 return true;
@@ -442,19 +502,24 @@ namespace ThiefSimulatorHack
 
             if (IsGamePaused()) return;
 
+            // Cache camera once per frame
+            Camera cam = Camera.main;
+            if (cam == null) cam = Camera.current;
+            if (cam == null) return;
+
             if (_itemEsp)
             {
-                DrawItemESP();
+                DrawItemESP(cam);
             }
 
             if (_aiEsp)
             {
-                DrawAIESP();
+                DrawAIESP(cam);
             }
             
             if (_carEsp)
             {
-                DrawCarESP();
+                DrawCarESP(cam);
             }
         }
 
@@ -530,31 +595,24 @@ namespace ThiefSimulatorHack
         {
             try
             {
-                FieldInfo itemAssetField = itemComp.GetType().GetField("itemAsset", BindingFlags.Public | BindingFlags.Instance);
-                if (itemAssetField != null)
+                if (_itemAssetField != null)
                 {
-                    object itemAsset = itemAssetField.GetValue(itemComp);
+                    object itemAsset = _itemAssetField.GetValue(itemComp);
                     if (itemAsset != null)
                     {
-                        FieldInfo nameField = itemAsset.GetType().GetField("itemName", BindingFlags.Public | BindingFlags.Instance);
-                        string itemName = nameField != null ? (string)nameField.GetValue(itemAsset) : "Unknown";
+                        string itemName = _itemNameField != null ? (string)_itemNameField.GetValue(itemAsset) : "Unknown";
+                        bool isBig = _isBigItemField != null && (bool)_isBigItemField.GetValue(itemAsset);
+                        bool isCash = _isCashField != null && (bool)_isCashField.GetValue(itemComp);
                         
-                        FieldInfo isBigField = itemAsset.GetType().GetField("isBigItem", BindingFlags.Public | BindingFlags.Instance);
-                        bool isBig = isBigField != null && (bool)isBigField.GetValue(itemAsset);
-                        
-                        FieldInfo cashField = itemComp.GetType().GetField("isCash", BindingFlags.Public | BindingFlags.Instance);
-                        bool isCash = cashField != null && (bool)cashField.GetValue(itemComp);
-                        
-                        FieldInfo itemTypeField = itemAsset.GetType().GetField("itemType", BindingFlags.Public | BindingFlags.Instance);
                         string typeIcon = "💎";
                         
                         if (isCash)
                         {
                             typeIcon = "💵";
                         }
-                        else if (itemTypeField != null)
+                        else if (_itemTypeField != null)
                         {
-                            int typeValue = (int)itemTypeField.GetValue(itemAsset);
+                            int typeValue = (int)_itemTypeField.GetValue(itemAsset);
                             if (typeValue == 1)
                                 typeIcon = "🔧";
                             else if (typeValue == 2)
@@ -577,14 +635,12 @@ namespace ThiefSimulatorHack
         {
             try
             {
-                FieldInfo itemAssetField = itemComp.GetType().GetField("itemAsset", BindingFlags.Public | BindingFlags.Instance);
-                if (itemAssetField != null)
+                if (_itemAssetField != null)
                 {
-                    object itemAsset = itemAssetField.GetValue(itemComp);
+                    object itemAsset = _itemAssetField.GetValue(itemComp);
                     if (itemAsset != null)
                     {
-                        FieldInfo nameField = itemAsset.GetType().GetField("itemName", BindingFlags.Public | BindingFlags.Instance);
-                        string itemName = nameField != null ? ((string)nameField.GetValue(itemAsset)).ToLower() : "";
+                        string itemName = _itemNameField != null ? ((string)_itemNameField.GetValue(itemAsset)).ToLower() : "";
                         
                         if (itemName.Contains("key"))
                             return Color.yellow;
@@ -593,10 +649,9 @@ namespace ThiefSimulatorHack
                         if (itemName.Contains("brick"))
                             return new Color(1f, 0.5f, 0f);
                         
-                        FieldInfo itemTypeField = itemAsset.GetType().GetField("itemType", BindingFlags.Public | BindingFlags.Instance);
-                        if (itemTypeField != null)
+                        if (_itemTypeField != null)
                         {
-                            int typeValue = (int)itemTypeField.GetValue(itemAsset);
+                            int typeValue = (int)_itemTypeField.GetValue(itemAsset);
                             if (typeValue == 1)
                                 return new Color(0.5f, 0.8f, 1f);
                         }
@@ -612,14 +667,12 @@ namespace ThiefSimulatorHack
         {
             try
             {
-                FieldInfo itemAssetField = itemComp.GetType().GetField("itemAsset", BindingFlags.Public | BindingFlags.Instance);
-                if (itemAssetField != null)
+                if (_itemAssetField != null)
                 {
-                    object itemAsset = itemAssetField.GetValue(itemComp);
+                    object itemAsset = _itemAssetField.GetValue(itemComp);
                     if (itemAsset != null)
                     {
-                        FieldInfo nameField = itemAsset.GetType().GetField("itemName", BindingFlags.Public | BindingFlags.Instance);
-                        string itemName = nameField != null ? ((string)nameField.GetValue(itemAsset)).ToLower() : "";
+                        string itemName = _itemNameField != null ? ((string)_itemNameField.GetValue(itemAsset)).ToLower() : "";
                         
                         if (itemName.Contains("brick") && !_showBrickItems)
                             return false;
@@ -631,12 +684,8 @@ namespace ThiefSimulatorHack
             return true;
         }
 
-        private void DrawItemESP()
+        private void DrawItemESP(Camera cam)
         {
-            Camera cam = Camera.main;
-            if (cam == null) cam = Camera.current;
-            if (cam == null) return;
-
             foreach (var itemComp in _cachedItems)
             {
                 if (itemComp == null || !itemComp.gameObject.activeInHierarchy) continue;
@@ -667,10 +716,9 @@ namespace ThiefSimulatorHack
         {
             try
             {
-                PropertyInfo property = aiComp.GetType().GetProperty("thiefDetector", BindingFlags.Public | BindingFlags.Instance);
-                if (property != null)
+                if (_thiefDetectorProperty != null)
                 {
-                    object thiefDetector = property.GetValue(aiComp, null);
+                    object thiefDetector = _thiefDetectorProperty.GetValue(aiComp, null);
                     if (thiefDetector != null)
                     {
                         Component detectorComp = thiefDetector as Component;
@@ -684,12 +732,8 @@ namespace ThiefSimulatorHack
             return aiComp.transform.position + Vector3.up * 1.6f;
         }
 
-        private void DrawAIESP()
+        private void DrawAIESP(Camera cam)
         {
-            Camera cam = Camera.main;
-            if (cam == null) cam = Camera.current;
-            if (cam == null) return;
-
             foreach (var aiComp in _cachedAI)
             {
                 if (aiComp == null || !aiComp.gameObject.activeInHierarchy) continue;
@@ -747,10 +791,9 @@ namespace ThiefSimulatorHack
         {
             try
             {
-                FieldInfo thiefsVehicleField = carComp.GetType().GetField("thiefsVehicle", BindingFlags.Public | BindingFlags.Instance);
-                if (thiefsVehicleField != null)
+                if (_thiefsVehicleField != null)
                 {
-                    return (bool)thiefsVehicleField.GetValue(carComp);
+                    return (bool)_thiefsVehicleField.GetValue(carComp);
                 }
             }
             catch { }
@@ -758,12 +801,8 @@ namespace ThiefSimulatorHack
             return false;
         }
 
-        private void DrawCarESP()
+        private void DrawCarESP(Camera cam)
         {
-            Camera cam = Camera.main;
-            if (cam == null) cam = Camera.current;
-            if (cam == null) return;
-
             foreach (var carComp in _cachedVehicles)
             {
                 if (carComp == null || !carComp.gameObject.activeInHierarchy) continue;
