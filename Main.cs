@@ -500,7 +500,7 @@ namespace ThiefSimulatorHack
                 _windowRect = GUI.Window(0, _windowRect, WindowFunction, "BYAKUGAN");
             }
 
-            if (IsGamePaused()) return;
+            if (IsGamePaused() && !_showMenu) return;
 
             // Cache camera once per frame
             Camera cam = Camera.main;
@@ -529,12 +529,12 @@ namespace ThiefSimulatorHack
             GUILayout.Label("--- FEATURES ---");
             GUI.contentColor = Color.white;
 
-            _itemEsp = GUILayout.Toggle(_itemEsp, " [X] Item ESP");
-            _aiEsp = GUILayout.Toggle(_aiEsp, " [X] AI ESP + Chams");
-            _carEsp = GUILayout.Toggle(_carEsp, " [X] Car ESP + Chams");
-            _transparentWalls = GUILayout.Toggle(_transparentWalls, " [X] Transparent Walls");
-            _whiteWalls = GUILayout.Toggle(_whiteWalls, " [X] White Walls");
-            _showBrickItems = GUILayout.Toggle(_showBrickItems, " [X] Show Bricks");
+            _itemEsp = GUILayout.Toggle(_itemEsp, " Item ESP");
+            _aiEsp = GUILayout.Toggle(_aiEsp, " AI ESP + Chams");
+            _carEsp = GUILayout.Toggle(_carEsp, " Car ESP + Chams");
+            _transparentWalls = GUILayout.Toggle(_transparentWalls, " Transparent Walls");
+            _whiteWalls = GUILayout.Toggle(_whiteWalls, " White Walls");
+            _showBrickItems = GUILayout.Toggle(_showBrickItems, " Show Bricks");
 
             GUILayout.Space(10);
             GUI.contentColor = Color.yellow;
@@ -568,6 +568,7 @@ namespace ThiefSimulatorHack
             }
             else
             {
+                GUILayout.BeginHorizontal();
                 GUI.backgroundColor = Color.red;
                 if (GUILayout.Button("CONFIRM UNLOAD"))
                 {
@@ -582,6 +583,7 @@ namespace ThiefSimulatorHack
                 {
                     _confirmUnload = false;
                 }
+                GUILayout.EndHorizontal();
             }
 
             GUILayout.FlexibleSpace();
