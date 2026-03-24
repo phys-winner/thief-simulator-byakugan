@@ -6,6 +6,29 @@ namespace ThiefSimulatorHack
 {
     public class Main : MonoBehaviour
     {
+        // Caching structures
+        private class ItemData
+        {
+            public Component component;
+            public string info;
+            public Color color;
+            public bool isBrick;
+        }
+
+        private class AIData
+        {
+            public Component component;
+            public bool isVisible;
+        }
+
+        private class VehicleData
+        {
+            public Component component;
+            public bool isPlayerCar;
+            public Color color;
+            public string label;
+        }
+
         // Menu state
         private bool _showMenu = true;
         
@@ -21,15 +44,16 @@ namespace ThiefSimulatorHack
         // Settings
         private float _espDistance = 100f;
         private float _wallTransparency = 0.3f;
+        private float _lastWallTransparency = -1f;
         
         private Rect _windowRect = new Rect(20, 20, 350, 440);
         private float _lastUpdateTime = 0;
         
         // Cached game objects
-        private List<Component> _cachedItems = new List<Component>();
-        private List<Component> _cachedAI = new List<Component>();
+        private List<ItemData> _cachedItems = new List<ItemData>();
+        private List<AIData> _cachedAI = new List<AIData>();
         private List<Component> _cachedCameras = new List<Component>();
-        private List<Component> _cachedVehicles = new List<Component>();
+        private List<VehicleData> _cachedVehicles = new List<VehicleData>();
         
         // White walls
         private Dictionary<Renderer, Material[]> _originalMaterials = new Dictionary<Renderer, Material[]>();
@@ -179,7 +203,7 @@ namespace ThiefSimulatorHack
             {
                 DisableTransparentWalls();
             }
-            else if (_transparentWalls && _transparentWallRenderers.Count > 0)
+            else if (_transparentWalls && _transparentWallRenderers.Count > 0 && Mathf.Abs(_wallTransparency - _lastWallTransparency) > 0.001f)
             {
                 UpdateWallTransparency();
             }
@@ -220,8 +244,46 @@ namespace ThiefSimulatorHack
                 {
                     foreach (var item in itemObjects)
                     {
-                        if (item != null && item.gameObject.activeInHierarchy)
-                            _cachedItems.Add(item);
+                        if (item == null || !item.gameObject.activeInHierarchy) continue;
+
+                        ItemData data = new ItemData { component = item };
+                        try
+                        {
+                            if (_itemAssetField != null)
+                            {
+                                object itemAsset = _itemAssetField.GetValue(item);
+                                if (itemAsset != null)
+                                {
+                                    string itemName = _itemNameField != null ? (string)_itemNameField.GetValue(itemAsset) : "Unknown";
+                                    bool isBig = _isBigItemField != null && (bool)_isBigItemField.GetValue(itemAsset);
+                                    bool isCash = _isCashField != null && (bool)_isCashField.GetValue(item);
+
+                                    string typeIcon = "💎";
+                                    if (isCash) typeIcon = "💵";
+                                    else if (_itemTypeField != null)
+                                    {
+                                        int typeValue = (int)_itemTypeField.GetValue(itemAsset);
+                                        if (typeValue == 1) typeIcon = "🔧";
+                                        else if (typeValue == 2) typeIcon = "🔑";
+                                    }
+                                    if (isBig) typeIcon = "📦";
+
+                                    data.info = $"{typeIcon} {itemName}";
+
+                                    string itemNameLower = itemName.ToLower();
+                                    data.isBrick = itemNameLower.Contains("brick");
+
+                                    // Item color logic
+                                    if (itemNameLower.Contains("key")) data.color = Color.yellow;
+                                    else if (itemNameLower.Contains("note")) data.color = Color.cyan;
+                                    else if (data.isBrick) data.color = new Color(1f, 0.5f, 0f);
+                                    else if (_itemTypeField != null && (int)_itemTypeField.GetValue(itemAsset) == 1) data.color = new Color(0.5f, 0.8f, 1f);
+                                    else data.color = Color.green;
+                                }
+                            }
+                        }
+                        catch { data.info = "Item"; data.color = Color.green; }
+                        _cachedItems.Add(data);
                     }
                 }
             }
@@ -234,8 +296,15 @@ namespace ThiefSimulatorHack
                 {
                     foreach (var ai in aiObjects)
                     {
-                        if (ai != null && ai.gameObject.activeInHierarchy)
-                            _cachedAI.Add(ai);
+                        if (ai == null || !ai.gameObject.activeInHierarchy) continue;
+
+                        AIData data = new AIData { component = ai };
+                        try
+                        {
+                            data.isVisible = _renderersOnField != null ? (bool)_renderersOnField.GetValue(ai) : true;
+                        }
+                        catch { data.isVisible = true; }
+                        _cachedAI.Add(data);
                     }
                 }
             }
@@ -262,8 +331,18 @@ namespace ThiefSimulatorHack
                 {
                     foreach (var car in vehicles)
                     {
-                        if (car != null && car.gameObject.activeInHierarchy)
-                            _cachedVehicles.Add(car);
+                        if (car == null || !car.gameObject.activeInHierarchy) continue;
+
+                        VehicleData data = new VehicleData { component = car };
+                        try
+                        {
+                            data.isPlayerCar = _thiefsVehicleField != null ? (bool)_thiefsVehicleField.GetValue(car) : false;
+                        }
+                        catch { data.isPlayerCar = false; }
+
+                        data.color = data.isPlayerCar ? Color.green : new Color(1f, 0.5f, 0f);
+                        data.label = data.isPlayerCar ? "🚗 MY CAR" : "🚗 CAR";
+                        _cachedVehicles.Add(data);
                     }
                 }
             }
@@ -352,6 +431,7 @@ namespace ThiefSimulatorHack
 
         private void UpdateWallTransparency()
         {
+            _lastWallTransparency = _wallTransparency;
             // Optimization: Iterate over cached materials directly
             // This avoids accessing renderer.materials which creates a new array every time
             for (int i = 0; i < _instantiatedTransparentMaterials.Count; i++)
@@ -385,10 +465,11 @@ namespace ThiefSimulatorHack
             _aiRenderers.Clear();
             _originalAIMaterials.Clear();
 
-            foreach (var aiComp in _cachedAI)
+            foreach (var aiData in _cachedAI)
             {
+                Component aiComp = aiData.component;
                 if (aiComp == null || !aiComp.gameObject.activeInHierarchy) continue;
-                if (!IsNPCVisible(aiComp)) continue;
+                if (!aiData.isVisible) continue;
                 
                 Renderer[] renderers = aiComp.GetComponentsInChildren<Renderer>();
                 foreach (var renderer in renderers)
@@ -428,11 +509,12 @@ namespace ThiefSimulatorHack
             _carRenderers.Clear();
             _originalCarMaterials.Clear();
 
-            foreach (var carComp in _cachedVehicles)
+            foreach (var carData in _cachedVehicles)
             {
+                Component carComp = carData.component;
                 if (carComp == null || !carComp.gameObject.activeInHierarchy) continue;
                 
-                bool isPlayerCar = IsPlayerCar(carComp);
+                bool isPlayerCar = carData.isPlayerCar;
                 Material chamMat = isPlayerCar ? _playerCarChamMaterial : _otherCarChamMaterial;
                 
                 Renderer[] renderers = carComp.GetComponentsInChildren<Renderer>();
@@ -686,28 +768,31 @@ namespace ThiefSimulatorHack
 
         private void DrawItemESP(Camera cam)
         {
-            foreach (var itemComp in _cachedItems)
+            Vector3 camPos = cam.transform.position;
+            float screenHeight = Screen.height;
+            float maxDistSqr = _espDistance * _espDistance;
+
+            foreach (var itemData in _cachedItems)
             {
+                Component itemComp = itemData.component;
                 if (itemComp == null || !itemComp.gameObject.activeInHierarchy) continue;
-                if (!ShouldDrawItem(itemComp)) continue;
+                if (itemData.isBrick && !_showBrickItems) continue;
 
                 Vector3 worldPos = itemComp.transform.position;
-                Vector3 screenPos = cam.WorldToScreenPoint(worldPos);
 
+                // Optimized distance check: use sqrMagnitude before WorldToScreenPoint
+                float distSqr = (worldPos - camPos).sqrMagnitude;
+                if (distSqr > maxDistSqr) continue;
+
+                Vector3 screenPos = cam.WorldToScreenPoint(worldPos);
                 if (screenPos.z > 0)
                 {
-                    float dist = Vector3.Distance(cam.transform.position, worldPos);
-                    if (dist > _espDistance) continue;
-
                     float x = screenPos.x;
-                    float y = Screen.height - screenPos.y;
+                    float y = screenHeight - screenPos.y;
 
-                    string itemInfo = GetItemInfo(itemComp);
-                    Color itemColor = GetItemColor(itemComp);
-                    
-                    GUI.color = itemColor;
+                    GUI.color = itemData.color;
                     GUI.Box(new Rect(x - 2, y - 2, 4, 4), "");
-                    GUI.Label(new Rect(x + 5, y - 10, 250, 20), $"{itemInfo} [{Mathf.RoundToInt(dist)}m]");
+                    GUI.Label(new Rect(x + 5, y - 10, 250, 20), $"{itemData.info} [{Mathf.RoundToInt(Mathf.Sqrt(distSqr))}m]");
                 }
             }
         }
@@ -734,34 +819,38 @@ namespace ThiefSimulatorHack
 
         private void DrawAIESP(Camera cam)
         {
-            foreach (var aiComp in _cachedAI)
+            Vector3 camPos = cam.transform.position;
+            float screenHeight = Screen.height;
+            float maxDistSqr = _espDistance * _espDistance;
+
+            foreach (var aiData in _cachedAI)
             {
+                Component aiComp = aiData.component;
                 if (aiComp == null || !aiComp.gameObject.activeInHierarchy) continue;
-                if (!IsNPCVisible(aiComp)) continue;
+                if (!aiData.isVisible) continue;
 
                 try
                 {
                     Vector3 worldPos = aiComp.transform.position;
+
+                    // Optimized distance check: use sqrMagnitude before WorldToScreenPoint
+                    float distSqr = (worldPos - camPos).sqrMagnitude;
+                    if (distSqr > maxDistSqr) continue;
+
                     Vector3 eyePos = GetEyePosition(aiComp);
                     Vector3 screenPos = cam.WorldToScreenPoint(eyePos);
 
                     if (screenPos.z > 0)
                     {
-                        float dist = Vector3.Distance(cam.transform.position, worldPos);
-                        if (dist > _espDistance) continue;
-
                         float x = screenPos.x;
-                        float y = Screen.height - screenPos.y;
+                        float y = screenHeight - screenPos.y;
 
                         GUI.color = Color.red;
                         GUI.Box(new Rect(x - 2, y - 2, 4, 4), "");
-                        GUI.Label(new Rect(x + 5, y - 10, 150, 20), $"NPC [{Mathf.RoundToInt(dist)}m]");
+                        GUI.Label(new Rect(x + 5, y - 10, 150, 20), $"NPC [{Mathf.RoundToInt(Mathf.Sqrt(distSqr))}m]");
                     }
                 }
-                catch
-                {
-                    continue;
-                }
+                catch { continue; }
             }
 
             // Draw Cameras
@@ -770,19 +859,20 @@ namespace ThiefSimulatorHack
                 if (camComp == null || !camComp.gameObject.activeInHierarchy) continue;
 
                 Vector3 worldPos = camComp.transform.position;
-                Vector3 screenPos = cam.WorldToScreenPoint(worldPos);
 
+                // Optimized distance check: use sqrMagnitude before WorldToScreenPoint
+                float distSqr = (worldPos - camPos).sqrMagnitude;
+                if (distSqr > maxDistSqr) continue;
+
+                Vector3 screenPos = cam.WorldToScreenPoint(worldPos);
                 if (screenPos.z > 0)
                 {
-                    float dist = Vector3.Distance(cam.transform.position, worldPos);
-                    if (dist > _espDistance) continue;
-
                     float x = screenPos.x;
-                    float y = Screen.height - screenPos.y;
+                    float y = screenHeight - screenPos.y;
 
                     GUI.color = Color.magenta;
                     GUI.Box(new Rect(x - 2, y - 2, 4, 4), "");
-                    GUI.Label(new Rect(x + 5, y - 10, 150, 20), $"CAM [{Mathf.RoundToInt(dist)}m]");
+                    GUI.Label(new Rect(x + 5, y - 10, 150, 20), $"CAM [{Mathf.RoundToInt(Mathf.Sqrt(distSqr))}m]");
                 }
             }
         }
@@ -803,28 +893,30 @@ namespace ThiefSimulatorHack
 
         private void DrawCarESP(Camera cam)
         {
-            foreach (var carComp in _cachedVehicles)
+            Vector3 camPos = cam.transform.position;
+            float screenHeight = Screen.height;
+            float maxDistSqr = _espDistance * _espDistance;
+
+            foreach (var carData in _cachedVehicles)
             {
+                Component carComp = carData.component;
                 if (carComp == null || !carComp.gameObject.activeInHierarchy) continue;
 
                 Vector3 worldPos = carComp.transform.position;
-                Vector3 screenPos = cam.WorldToScreenPoint(worldPos);
 
+                // Optimized distance check: use sqrMagnitude before WorldToScreenPoint
+                float distSqr = (worldPos - camPos).sqrMagnitude;
+                if (distSqr > maxDistSqr) continue;
+
+                Vector3 screenPos = cam.WorldToScreenPoint(worldPos);
                 if (screenPos.z > 0)
                 {
-                    float dist = Vector3.Distance(cam.transform.position, worldPos);
-                    if (dist > _espDistance) continue;
-
                     float x = screenPos.x;
-                    float y = Screen.height - screenPos.y;
+                    float y = screenHeight - screenPos.y;
 
-                    bool isPlayerCar = IsPlayerCar(carComp);
-                    Color carColor = isPlayerCar ? Color.green : new Color(1f, 0.5f, 0f);
-                    string label = isPlayerCar ? "🚗 MY CAR" : "🚗 CAR";
-
-                    GUI.color = carColor;
+                    GUI.color = carData.color;
                     GUI.Box(new Rect(x - 2, y - 2, 4, 4), "");
-                    GUI.Label(new Rect(x + 5, y - 10, 150, 20), $"{label} [{Mathf.RoundToInt(dist)}m]");
+                    GUI.Label(new Rect(x + 5, y - 10, 150, 20), $"{carData.label} [{Mathf.RoundToInt(Mathf.Sqrt(distSqr))}m]");
                 }
             }
         }
