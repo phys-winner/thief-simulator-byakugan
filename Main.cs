@@ -535,11 +535,26 @@ namespace ThiefSimulatorHack
             GUI.contentColor = Color.white;
 
             _itemEsp = GUILayout.Toggle(_itemEsp, " Item ESP");
+            GUILayout.BeginHorizontal();
+            GUILayout.Space(20);
+            _showBrickItems = GUILayout.Toggle(_showBrickItems, " Show Bricks");
+            GUILayout.EndHorizontal();
+
             _aiEsp = GUILayout.Toggle(_aiEsp, " AI ESP + Chams");
             _carEsp = GUILayout.Toggle(_carEsp, " Car ESP + Chams");
             _transparentWalls = GUILayout.Toggle(_transparentWalls, " Transparent Walls");
+
+            GUI.enabled = !_transparentWalls;
             _whiteWalls = GUILayout.Toggle(_whiteWalls, " White Walls");
-            _showBrickItems = GUILayout.Toggle(_showBrickItems, " Show Bricks");
+            GUI.enabled = true;
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Space(20);
+            GUI.contentColor = Color.gray;
+            string whiteWallsHint = _transparentWalls ? "(N/A: Transparent Walls active)" : "High-contrast textures";
+            GUILayout.Label(whiteWallsHint);
+            GUI.contentColor = Color.white;
+            GUILayout.EndHorizontal();
 
             GUILayout.Space(10);
             GUI.contentColor = Color.yellow;
