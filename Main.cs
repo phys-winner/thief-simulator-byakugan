@@ -507,19 +507,24 @@ namespace ThiefSimulatorHack
             if (cam == null) cam = Camera.current;
             if (cam == null) return;
 
+            // Cache frame-wide constants for ESP
+            Vector3 camPos = cam.transform.position;
+            float screenHeight = Screen.height;
+            float sqrMaxDist = _espDistance * _espDistance;
+
             if (_itemEsp)
             {
-                DrawItemESP(cam);
+                DrawItemESP(cam, camPos, screenHeight, sqrMaxDist);
             }
 
             if (_aiEsp)
             {
-                DrawAIESP(cam);
+                DrawAIESP(cam, camPos, screenHeight, sqrMaxDist);
             }
             
             if (_carEsp)
             {
-                DrawCarESP(cam);
+                DrawCarESP(cam, camPos, screenHeight, sqrMaxDist);
             }
         }
 
@@ -686,7 +691,7 @@ namespace ThiefSimulatorHack
             return true;
         }
 
-        private void DrawItemESP(Camera cam)
+        private void DrawItemESP(Camera cam, Vector3 camPos, float screenHeight, float sqrMaxDist)
         {
             foreach (var itemComp in _cachedItems)
             {
@@ -694,22 +699,24 @@ namespace ThiefSimulatorHack
                 if (!ShouldDrawItem(itemComp)) continue;
 
                 Vector3 worldPos = itemComp.transform.position;
-                Vector3 screenPos = cam.WorldToScreenPoint(worldPos);
 
+                // Performance: Check distance before expensive WorldToScreenPoint
+                // Performance: Use sqrMagnitude to avoid square root
+                float sqrDist = (worldPos - camPos).sqrMagnitude;
+                if (sqrDist > sqrMaxDist) continue;
+
+                Vector3 screenPos = cam.WorldToScreenPoint(worldPos);
                 if (screenPos.z > 0)
                 {
-                    float dist = Vector3.Distance(cam.transform.position, worldPos);
-                    if (dist > _espDistance) continue;
-
                     float x = screenPos.x;
-                    float y = Screen.height - screenPos.y;
+                    float y = screenHeight - screenPos.y;
 
                     string itemInfo = GetItemInfo(itemComp);
                     Color itemColor = GetItemColor(itemComp);
                     
                     GUI.color = itemColor;
                     GUI.Box(new Rect(x - 2, y - 2, 4, 4), "");
-                    GUI.Label(new Rect(x + 5, y - 10, 250, 20), $"{itemInfo} [{Mathf.RoundToInt(dist)}m]");
+                    GUI.Label(new Rect(x + 5, y - 10, 250, 20), $"{itemInfo} [{Mathf.RoundToInt(Mathf.Sqrt(sqrDist))}m]");
                 }
             }
         }
@@ -734,7 +741,7 @@ namespace ThiefSimulatorHack
             return aiComp.transform.position + Vector3.up * 1.6f;
         }
 
-        private void DrawAIESP(Camera cam)
+        private void DrawAIESP(Camera cam, Vector3 camPos, float screenHeight, float sqrMaxDist)
         {
             foreach (var aiComp in _cachedAI)
             {
@@ -744,20 +751,23 @@ namespace ThiefSimulatorHack
                 try
                 {
                     Vector3 worldPos = aiComp.transform.position;
+
+                    // Performance: Check distance before expensive WorldToScreenPoint
+                    // Performance: Use sqrMagnitude to avoid square root
+                    float sqrDist = (worldPos - camPos).sqrMagnitude;
+                    if (sqrDist > sqrMaxDist) continue;
+
                     Vector3 eyePos = GetEyePosition(aiComp);
                     Vector3 screenPos = cam.WorldToScreenPoint(eyePos);
 
                     if (screenPos.z > 0)
                     {
-                        float dist = Vector3.Distance(cam.transform.position, worldPos);
-                        if (dist > _espDistance) continue;
-
                         float x = screenPos.x;
-                        float y = Screen.height - screenPos.y;
+                        float y = screenHeight - screenPos.y;
 
                         GUI.color = Color.red;
                         GUI.Box(new Rect(x - 2, y - 2, 4, 4), "");
-                        GUI.Label(new Rect(x + 5, y - 10, 150, 20), $"NPC [{Mathf.RoundToInt(dist)}m]");
+                        GUI.Label(new Rect(x + 5, y - 10, 150, 20), $"NPC [{Mathf.RoundToInt(Mathf.Sqrt(sqrDist))}m]");
                     }
                 }
                 catch
@@ -772,19 +782,21 @@ namespace ThiefSimulatorHack
                 if (camComp == null || !camComp.gameObject.activeInHierarchy) continue;
 
                 Vector3 worldPos = camComp.transform.position;
-                Vector3 screenPos = cam.WorldToScreenPoint(worldPos);
 
+                // Performance: Check distance before expensive WorldToScreenPoint
+                // Performance: Use sqrMagnitude to avoid square root
+                float sqrDist = (worldPos - camPos).sqrMagnitude;
+                if (sqrDist > sqrMaxDist) continue;
+
+                Vector3 screenPos = cam.WorldToScreenPoint(worldPos);
                 if (screenPos.z > 0)
                 {
-                    float dist = Vector3.Distance(cam.transform.position, worldPos);
-                    if (dist > _espDistance) continue;
-
                     float x = screenPos.x;
-                    float y = Screen.height - screenPos.y;
+                    float y = screenHeight - screenPos.y;
 
                     GUI.color = Color.magenta;
                     GUI.Box(new Rect(x - 2, y - 2, 4, 4), "");
-                    GUI.Label(new Rect(x + 5, y - 10, 150, 20), $"CAM [{Mathf.RoundToInt(dist)}m]");
+                    GUI.Label(new Rect(x + 5, y - 10, 150, 20), $"CAM [{Mathf.RoundToInt(Mathf.Sqrt(sqrDist))}m]");
                 }
             }
         }
@@ -803,22 +815,24 @@ namespace ThiefSimulatorHack
             return false;
         }
 
-        private void DrawCarESP(Camera cam)
+        private void DrawCarESP(Camera cam, Vector3 camPos, float screenHeight, float sqrMaxDist)
         {
             foreach (var carComp in _cachedVehicles)
             {
                 if (carComp == null || !carComp.gameObject.activeInHierarchy) continue;
 
                 Vector3 worldPos = carComp.transform.position;
-                Vector3 screenPos = cam.WorldToScreenPoint(worldPos);
 
+                // Performance: Check distance before expensive WorldToScreenPoint
+                // Performance: Use sqrMagnitude to avoid square root
+                float sqrDist = (worldPos - camPos).sqrMagnitude;
+                if (sqrDist > sqrMaxDist) continue;
+
+                Vector3 screenPos = cam.WorldToScreenPoint(worldPos);
                 if (screenPos.z > 0)
                 {
-                    float dist = Vector3.Distance(cam.transform.position, worldPos);
-                    if (dist > _espDistance) continue;
-
                     float x = screenPos.x;
-                    float y = Screen.height - screenPos.y;
+                    float y = screenHeight - screenPos.y;
 
                     bool isPlayerCar = IsPlayerCar(carComp);
                     Color carColor = isPlayerCar ? Color.green : new Color(1f, 0.5f, 0f);
@@ -826,7 +840,7 @@ namespace ThiefSimulatorHack
 
                     GUI.color = carColor;
                     GUI.Box(new Rect(x - 2, y - 2, 4, 4), "");
-                    GUI.Label(new Rect(x + 5, y - 10, 150, 20), $"{label} [{Mathf.RoundToInt(dist)}m]");
+                    GUI.Label(new Rect(x + 5, y - 10, 150, 20), $"{label} [{Mathf.RoundToInt(Mathf.Sqrt(sqrDist))}m]");
                 }
             }
         }
