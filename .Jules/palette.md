@@ -9,3 +9,7 @@
 ## 2025-01-24 - Reactive UI Hints for Feature Conflicts
 **Learning:** Disabling a UI element without explanation (silent failure) is frustrating for users. When features conflict (e.g., Transparent Walls vs. White Walls), the dependent feature should be visually disabled, and a status hint should explain why it is unavailable.
 **Action:** Use 'GUI.enabled' to prevent invalid states and 'GUI.contentColor' to provide grayed-out "N/A" hints that guide the user.
+
+## 2025-01-24 - Quick-Reset for Sliders
+**Learning:** Sliders in a compact IMGUI window can be finicky to return to default values manually. Adding a "Reset" button (using `GUILayout.Button` with a fixed width) next to the slider label provides a one-click way to restore "sane" defaults, significantly improving the "pleasantness" of the UI.
+**Action:** Implement "Reset" buttons for any settings that involve range-based inputs like sliders.
