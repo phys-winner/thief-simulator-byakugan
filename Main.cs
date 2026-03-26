@@ -535,10 +535,18 @@ namespace ThiefSimulatorHack
             GUI.contentColor = Color.white;
 
             _itemEsp = GUILayout.Toggle(_itemEsp, " Item ESP");
+            GUI.enabled = _itemEsp;
             GUILayout.BeginHorizontal();
             GUILayout.Space(20);
             _showBrickItems = GUILayout.Toggle(_showBrickItems, " Show Bricks");
+            if (!_itemEsp)
+            {
+                GUI.contentColor = Color.gray;
+                GUILayout.Label("(Requires Item ESP)");
+                GUI.contentColor = Color.white;
+            }
             GUILayout.EndHorizontal();
+            GUI.enabled = true;
 
             _aiEsp = GUILayout.Toggle(_aiEsp, " AI ESP + Chams");
             _carEsp = GUILayout.Toggle(_carEsp, " Car ESP + Chams");
@@ -563,6 +571,11 @@ namespace ThiefSimulatorHack
             
             GUILayout.BeginHorizontal();
             GUILayout.Label($"ESP Distance: {_espDistance:F0}m");
+            GUILayout.FlexibleSpace();
+            if (GUILayout.Button("Reset", GUILayout.Width(50)))
+            {
+                _espDistance = 100f;
+            }
             GUILayout.EndHorizontal();
             _espDistance = GUILayout.HorizontalSlider(_espDistance, 10f, 500f);
             
@@ -570,6 +583,11 @@ namespace ThiefSimulatorHack
             {
                 GUILayout.BeginHorizontal();
                 GUILayout.Label($"Wall Alpha: {_wallTransparency:F2}");
+                GUILayout.FlexibleSpace();
+                if (GUILayout.Button("Reset", GUILayout.Width(50)))
+                {
+                    _wallTransparency = 0.3f;
+                }
                 GUILayout.EndHorizontal();
                 _wallTransparency = GUILayout.HorizontalSlider(_wallTransparency, 0.0f, 1.0f);
             }
