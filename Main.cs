@@ -456,9 +456,9 @@ namespace ThiefSimulatorHack
                     _originalAIMaterials[renderer] = renderer.materials;
                     
                     Material[] chamMats = new Material[renderer.materials.Length];
-                    for (int i = 0; i < chamMats.Length; i++)
+                    for (int j = 0; j < chamMats.Length; j++)
                     {
-                        chamMats[i] = _aiChamMaterial;
+                        chamMats[j] = _aiChamMaterial;
                     }
                     
                     renderer.materials = chamMats;
@@ -502,9 +502,9 @@ namespace ThiefSimulatorHack
                     _originalCarMaterials[renderer] = renderer.materials;
                     
                     Material[] chamMats = new Material[renderer.materials.Length];
-                    for (int i = 0; i < chamMats.Length; i++)
+                    for (int j = 0; j < chamMats.Length; j++)
                     {
-                        chamMats[i] = chamMat;
+                        chamMats[j] = chamMat;
                     }
                     
                     renderer.materials = chamMats;
