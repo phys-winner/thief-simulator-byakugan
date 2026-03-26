@@ -440,12 +440,14 @@ namespace ThiefSimulatorHack
             _aiRenderers.Clear();
             _originalAIMaterials.Clear();
 
-            foreach (var aiComp in _cachedAI)
+            for (int i = 0; i < _cachedAI.Count; i++)
             {
-                if (aiComp == null || !aiComp.gameObject.activeInHierarchy) continue;
-                if (!IsNPCVisible(aiComp)) continue;
+                AIData ai = _cachedAI[i];
+                if (ai.Component == null) continue;
+                if (!ai.Component.gameObject.activeInHierarchy) continue;
+                if (!ai.IsVisible) continue;
                 
-                Renderer[] renderers = aiComp.GetComponentsInChildren<Renderer>();
+                Renderer[] renderers = ai.Component.GetComponentsInChildren<Renderer>();
                 foreach (var renderer in renderers)
                 {
                     if (renderer == null || !renderer.enabled) continue;
@@ -483,14 +485,15 @@ namespace ThiefSimulatorHack
             _carRenderers.Clear();
             _originalCarMaterials.Clear();
 
-            foreach (var carComp in _cachedVehicles)
+            for (int i = 0; i < _cachedVehicles.Count; i++)
             {
-                if (carComp == null || !carComp.gameObject.activeInHierarchy) continue;
+                VehicleData car = _cachedVehicles[i];
+                if (car.Component == null) continue;
+                if (!car.Component.gameObject.activeInHierarchy) continue;
                 
-                bool isPlayerCar = IsPlayerCar(carComp);
-                Material chamMat = isPlayerCar ? _playerCarChamMaterial : _otherCarChamMaterial;
+                Material chamMat = car.IsPlayerCar ? _playerCarChamMaterial : _otherCarChamMaterial;
                 
-                Renderer[] renderers = carComp.GetComponentsInChildren<Renderer>();
+                Renderer[] renderers = car.Component.GetComponentsInChildren<Renderer>();
                 foreach (var renderer in renderers)
                 {
                     if (renderer == null || !renderer.enabled) continue;
@@ -766,7 +769,8 @@ namespace ThiefSimulatorHack
             for (int i = 0; i < _cachedItems.Count; i++)
             {
                 ItemData item = _cachedItems[i];
-                if (item.Component == null || !item.Component.gameObject.activeInHierarchy) continue;
+                if (item.Component == null) continue;
+                if (!item.Component.gameObject.activeInHierarchy) continue;
                 if (!item.ShouldDraw) continue;
 
                 Vector3 worldPos = item.Transform.position;
@@ -794,7 +798,8 @@ namespace ThiefSimulatorHack
             for (int i = 0; i < _cachedAI.Count; i++)
             {
                 AIData ai = _cachedAI[i];
-                if (ai.Component == null || !ai.Component.gameObject.activeInHierarchy) continue;
+                if (ai.Component == null) continue;
+                if (!ai.Component.gameObject.activeInHierarchy) continue;
                 if (!ai.IsVisible) continue;
 
                 try
@@ -826,7 +831,8 @@ namespace ThiefSimulatorHack
             for (int i = 0; i < _cachedCameras.Count; i++)
             {
                 CameraData camData = _cachedCameras[i];
-                if (camData.Component == null || !camData.Component.gameObject.activeInHierarchy) continue;
+                if (camData.Component == null) continue;
+                if (!camData.Component.gameObject.activeInHierarchy) continue;
 
                 Vector3 worldPos = camData.Transform.position;
 
@@ -867,7 +873,8 @@ namespace ThiefSimulatorHack
             for (int i = 0; i < _cachedVehicles.Count; i++)
             {
                 VehicleData car = _cachedVehicles[i];
-                if (car.Component == null || !car.Component.gameObject.activeInHierarchy) continue;
+                if (car.Component == null) continue;
+                if (!car.Component.gameObject.activeInHierarchy) continue;
 
                 Vector3 worldPos = car.Transform.position;
 
