@@ -626,6 +626,20 @@ namespace ThiefSimulatorHack
             GUI.contentColor = Color.yellow;
             GUILayout.Label("--- SETTINGS ---");
             GUI.contentColor = Color.white;
+
+            if (GUILayout.Button("Reset All to Defaults"))
+            {
+                _itemEsp = true;
+                _aiEsp = true;
+                _carEsp = true;
+                _transparentWalls = false;
+                _whiteWalls = false;
+                _showBrickItems = false;
+                _confirmUnload = false;
+                _espDistance = 100f;
+                _wallTransparency = 0.3f;
+                _lastWallTransparency = -1.0f;
+            }
             
             GUILayout.BeginHorizontal();
             GUILayout.Label($"ESP Distance: {_espDistance:F0}m");
