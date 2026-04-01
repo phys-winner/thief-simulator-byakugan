@@ -226,16 +226,21 @@ namespace ThiefSimulatorHack
                 {
                     foreach (var item in itemObjects)
                     {
-                        if (item != null && item.gameObject.activeInHierarchy)
+                        if (item != null)
                         {
-                            _cachedItems.Add(new ItemData
+                            GameObject go = item.gameObject;
+                            if (go.activeInHierarchy)
                             {
-                                Component = item,
-                                Transform = item.transform,
-                                Info = GetItemInfo(item),
-                                Color = GetItemColor(item),
-                                ShouldDraw = ShouldDrawItem(item)
-                            });
+                                _cachedItems.Add(new ItemData
+                                {
+                                    Component = item,
+                                    GameObject = go,
+                                    Transform = item.transform,
+                                    Info = GetItemInfo(item),
+                                    Color = GetItemColor(item),
+                                    ShouldDraw = ShouldDrawItem(item)
+                                });
+                            }
                         }
                     }
                 }
@@ -270,6 +275,7 @@ namespace ThiefSimulatorHack
                             _cachedAI.Add(new AIData
                             {
                                 Component = ai,
+                                GameObject = ai.gameObject,
                                 Transform = ai.transform,
                                 EyeTransform = eyeTrans,
                                 IsVisible = IsNPCVisible(ai)
@@ -287,13 +293,18 @@ namespace ThiefSimulatorHack
                 {
                     foreach (var cam in cctvCameras)
                     {
-                        if (cam != null && cam.gameObject.activeInHierarchy)
+                        if (cam != null)
                         {
-                            _cachedCameras.Add(new CameraData
+                            GameObject go = cam.gameObject;
+                            if (go.activeInHierarchy)
                             {
-                                Component = cam,
-                                Transform = cam.transform
-                            });
+                                _cachedCameras.Add(new CameraData
+                                {
+                                    Component = cam,
+                                    GameObject = go,
+                                    Transform = cam.transform
+                                });
+                            }
                         }
                     }
                 }
@@ -307,17 +318,22 @@ namespace ThiefSimulatorHack
                 {
                     foreach (var car in vehicles)
                     {
-                        if (car != null && car.gameObject.activeInHierarchy)
+                        if (car != null)
                         {
-                            bool isPlayerCar = IsPlayerCar(car);
-                            _cachedVehicles.Add(new VehicleData
+                            GameObject go = car.gameObject;
+                            if (go.activeInHierarchy)
                             {
-                                Component = car,
-                                Transform = car.transform,
-                                IsPlayerCar = isPlayerCar,
-                                Color = isPlayerCar ? Color.green : new Color(1f, 0.5f, 0f),
-                                Label = isPlayerCar ? "🚗 MY CAR" : "🚗 CAR"
-                            });
+                                bool isPlayerCar = IsPlayerCar(car);
+                                _cachedVehicles.Add(new VehicleData
+                                {
+                                    Component = car,
+                                    GameObject = go,
+                                    Transform = car.transform,
+                                    IsPlayerCar = isPlayerCar,
+                                    Color = isPlayerCar ? Color.green : new Color(1f, 0.5f, 0f),
+                                    Label = isPlayerCar ? "🚗 MY CAR" : "🚗 CAR"
+                                });
+                            }
                         }
                     }
                 }
@@ -802,8 +818,6 @@ namespace ThiefSimulatorHack
             {
                 ItemData item = _cachedItems[i];
                 if (item.Component == null) continue;
-                if (!item.Component.gameObject.activeInHierarchy) continue;
-                if (!item.ShouldDraw) continue;
 
                 Vector3 worldPos = item.Transform.position;
 
@@ -811,6 +825,10 @@ namespace ThiefSimulatorHack
                 // Performance: Use sqrMagnitude to avoid square root
                 float sqrDist = (worldPos - camPos).sqrMagnitude;
                 if (sqrDist > sqrMaxDist) continue;
+
+                // Performance: Move native active check after distance check
+                if (!item.GameObject.activeInHierarchy) continue;
+                if (!item.ShouldDraw) continue;
 
                 Vector3 screenPos = cam.WorldToScreenPoint(worldPos);
                 if (screenPos.z > 0)
@@ -831,8 +849,6 @@ namespace ThiefSimulatorHack
             {
                 AIData ai = _cachedAI[i];
                 if (ai.Component == null) continue;
-                if (!ai.Component.gameObject.activeInHierarchy) continue;
-                if (!ai.IsVisible) continue;
 
                 try
                 {
@@ -842,6 +858,10 @@ namespace ThiefSimulatorHack
                     // Performance: Use sqrMagnitude to avoid square root
                     float sqrDist = (worldPos - camPos).sqrMagnitude;
                     if (sqrDist > sqrMaxDist) continue;
+
+                    // Performance: Move native active check after distance check
+                    if (!ai.GameObject.activeInHierarchy) continue;
+                    if (!ai.IsVisible) continue;
 
                     Vector3 eyePos = ai.EyeTransform != null ? ai.EyeTransform.position : worldPos + Vector3.up * 1.6f;
                     Vector3 screenPos = cam.WorldToScreenPoint(eyePos);
@@ -864,7 +884,6 @@ namespace ThiefSimulatorHack
             {
                 CameraData camData = _cachedCameras[i];
                 if (camData.Component == null) continue;
-                if (!camData.Component.gameObject.activeInHierarchy) continue;
 
                 Vector3 worldPos = camData.Transform.position;
 
@@ -872,6 +891,9 @@ namespace ThiefSimulatorHack
                 // Performance: Use sqrMagnitude to avoid square root
                 float sqrDist = (worldPos - camPos).sqrMagnitude;
                 if (sqrDist > sqrMaxDist) continue;
+
+                // Performance: Move native active check after distance check
+                if (!camData.GameObject.activeInHierarchy) continue;
 
                 Vector3 screenPos = cam.WorldToScreenPoint(worldPos);
                 if (screenPos.z > 0)
@@ -906,7 +928,6 @@ namespace ThiefSimulatorHack
             {
                 VehicleData car = _cachedVehicles[i];
                 if (car.Component == null) continue;
-                if (!car.Component.gameObject.activeInHierarchy) continue;
 
                 Vector3 worldPos = car.Transform.position;
 
@@ -914,6 +935,9 @@ namespace ThiefSimulatorHack
                 // Performance: Use sqrMagnitude to avoid square root
                 float sqrDist = (worldPos - camPos).sqrMagnitude;
                 if (sqrDist > sqrMaxDist) continue;
+
+                // Performance: Move native active check after distance check
+                if (!car.GameObject.activeInHierarchy) continue;
 
                 Vector3 screenPos = cam.WorldToScreenPoint(worldPos);
                 if (screenPos.z > 0)
@@ -940,6 +964,7 @@ namespace ThiefSimulatorHack
         private struct ItemData
         {
             public Component Component;
+            public GameObject GameObject;
             public Transform Transform;
             public string Info;
             public Color Color;
@@ -949,6 +974,7 @@ namespace ThiefSimulatorHack
         private struct AIData
         {
             public Component Component;
+            public GameObject GameObject;
             public Transform Transform;
             public Transform EyeTransform;
             public bool IsVisible;
@@ -957,12 +983,14 @@ namespace ThiefSimulatorHack
         private struct CameraData
         {
             public Component Component;
+            public GameObject GameObject;
             public Transform Transform;
         }
 
         private struct VehicleData
         {
             public Component Component;
+            public GameObject GameObject;
             public Transform Transform;
             public bool IsPlayerCar;
             public Color Color;
